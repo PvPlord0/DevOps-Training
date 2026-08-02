@@ -1,0 +1,10 @@
+**/.env
+
+**/target/
+**/node_modules/
+**/.venv/
+**/__pycache__/
+**/logs/
+**/.python-version
+
+*.log
