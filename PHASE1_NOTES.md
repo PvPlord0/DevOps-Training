@@ -22,6 +22,7 @@
 | 8 | Missing JWT_SECRET fail-fast check | auth-service-node |
 | 9 | `express.json()` consumes body before proxy | api-gateway-node |
 | 10 | Published event uses `id` instead of `bookingId` | booking-service-python |
+| 11 | `GET /api/catalog/{id}` returns `Optional` wrapper instead of flat object | legacy-catalog-java |
 
 ---
 
@@ -132,3 +133,13 @@
 **Description:** Booking service published with key `"id"`, but the notification worker expects `"bookingId"`. Worker always received an empty booking ID. — producing broken log output like `"notification: booking  confirmed for user ..."`.
 
 **Fix:** Before publishing, rename the `"id"` key to `"bookingId"` in the message dict so it matches the Go struct tag and the API contract (`API_CONTRACT.md:35`).
+
+---
+
+## Bug 11: `GET /api/catalog/{id}` Returns `Optional` Wrapper
+
+**Location:** `services/legacy-catalog-java/src/main/java/com/campus/catalog/CatalogController.java:24-27`
+
+**Description:** `getOne()` returned `Optional<CatalogEvent>`, which Spring serialized as a wrapper instead of the flat object the contract requires. Missing IDs returned 200 with null instead of 404.
+
+**Fix:** Changed return type to `ResponseEntity<CatalogEvent>`. Uses `.map(ResponseEntity::ok)` for found entities and `.orElse(ResponseEntity.notFound().build())` for missing ones (404 with empty body).
