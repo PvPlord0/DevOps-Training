@@ -21,6 +21,7 @@
 | 7 | Missing try/catch in `/login` handler | auth-service-node |
 | 8 | Missing JWT_SECRET fail-fast check | auth-service-node |
 | 9 | `express.json()` consumes body before proxy | api-gateway-node |
+| 10 | Published event uses `id` instead of `bookingId` | booking-service-python |
 
 ---
 
@@ -121,3 +122,13 @@
 **Description:** `express.json()` ran before the proxy middleware, draining the request stream. Every POST through the gateway arrived at the backend with an empty body.
 
 **Fix:** Removed `express.json()` from the gateway. The gateway only proxies — it never needs to parse request bodies itself.
+
+---
+
+## Bug 10: Published Event Uses `id` Instead of `bookingId`
+
+**Location:** `services/booking-service-python/app/events.py:24`
+
+**Description:** Booking service published with key `"id"`, but the notification worker expects `"bookingId"`. Worker always received an empty booking ID. — producing broken log output like `"notification: booking  confirmed for user ..."`.
+
+**Fix:** Before publishing, rename the `"id"` key to `"bookingId"` in the message dict so it matches the Go struct tag and the API contract (`API_CONTRACT.md:35`).

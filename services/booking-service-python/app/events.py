@@ -21,7 +21,8 @@ def publish_booking_created(booking: dict):
         connection = pika.BlockingConnection(pika.URLParameters(url))
         channel = connection.channel()
         channel.queue_declare(queue=queue, durable=True)
-        channel.basic_publish(exchange="", routing_key=queue, body=json.dumps(booking))
+        message = {("bookingId" if k == "id" else k): v for k, v in booking.items()}
+        channel.basic_publish(exchange="", routing_key=queue, body=json.dumps(message))
         connection.close()
     except Exception as exc:
         logger.error("failed to publish booking event: %s", exc)
