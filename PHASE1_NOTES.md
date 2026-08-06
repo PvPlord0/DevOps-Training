@@ -15,6 +15,7 @@
 | 2 | Missing dotenv loading | auth-service-node (Node) |
 | 3 | Missing dotenv loading | ai-insight, analytics, booking (Python) |
 | 4 | Missing `/health` in API-CONTRACT.md | legacy-catalog-java |
+| 5 | Vite/esbuild compatibility | frontend |
 
 ---
 
@@ -63,3 +64,15 @@
 **Description:** Health check endpoint was not documented in `API-CONTRACT.md` but was required for service health monitoring.
 
 **Fix:** Added `/health` endpoint to the legacy catalog Java service.
+
+---
+
+## Bug 5: Frontend Vite/Esbuild Compatibility
+
+**Location:** `frontend/package.json`
+
+**Description:** Outdated Vite version which had a version of esbuild with 2 vulnerabilities.
+
+**Fix:**
+1. Upgraded `vite: ^5.2.11 → ^7.3.6`
+2. Added `allowScripts` entry for `esbuild@0.28.1`
