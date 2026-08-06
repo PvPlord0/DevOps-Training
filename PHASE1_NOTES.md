@@ -19,6 +19,7 @@
 | 5 | Vite/esbuild compatibility | frontend |
 | 6 | Frontend routing — missing API Gateway | frontend |
 | 7 | Missing try/catch in `/login` handler | auth-service-node |
+| 8 | Missing JWT_SECRET fail-fast check | auth-service-node |
 
 ---
 
@@ -99,3 +100,13 @@
 **Description:** Async `/login` handler had no `try/catch`. Any error (DB down, missing `JWT_SECRET`) became an unhandled rejection that crashed the process.
 
 **Fix:** Wrapped handler body in `try/catch` to return `500` on failure, matching `/register`.
+
+---
+
+## Bug 8: Missing JWT_SECRET Fail-Fast Check
+
+**Location:** `services/auth-service-node/src/index.js:1-3`
+
+**Description:** The service didn't validate `JWT_SECRET` at startup. If unset, `jwt.sign()` would throw during login, crashing the process.
+
+**Fix:** Added a startup check that throws immediately if `JWT_SECRET` is missing.

@@ -1,4 +1,7 @@
 require('dotenv').config();
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
+}
 const express = require('express');
 const authRoutes = require('./routes/auth');
 const { init } = require('./db');
