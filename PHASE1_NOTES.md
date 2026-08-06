@@ -6,6 +6,7 @@
 - **npm version:** 11.16.0
 - **Python version (required):** 3.12.11
 - **OpenJDK:** 21.0.11
+- **Go version:** 1.24.4
 
 ## Summary
 
@@ -16,6 +17,7 @@
 | 3 | Missing dotenv loading | ai-insight, analytics, booking (Python) |
 | 4 | Missing `/health` in API-CONTRACT.md | legacy-catalog-java |
 | 5 | Vite/esbuild compatibility | frontend |
+| 6 | Frontend routing — missing API Gateway | frontend |
 
 ---
 
@@ -76,3 +78,13 @@
 **Fix:**
 1. Upgraded `vite: ^5.2.11 → ^7.3.6`
 2. Added `allowScripts` entry for `esbuild@0.28.1`
+
+---
+
+## Bug 6: Frontend Routing — Missing API Gateway
+
+**Location:** `services/api-gateway-node/`
+
+**Description:** Frontend routing was broken because there was no API Gateway to proxy external requests to internal services.
+
+**Fix:** Created `services/api-gateway-node/` as a Node.js API Gateway to handle frontend routing.
