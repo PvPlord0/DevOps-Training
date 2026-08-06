@@ -4,6 +4,10 @@ changes across the project's phases, but this script itself does not."""
 
 import logging
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from app.redis_client import write_snapshot
 from app.snapshot import compute_snapshot
 

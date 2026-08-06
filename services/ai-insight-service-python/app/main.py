@@ -1,5 +1,8 @@
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from pydantic import BaseModel
+
+load_dotenv()
 
 from .fallback import rule_based_analysis
 from .ollama_client import analyze_with_ollama

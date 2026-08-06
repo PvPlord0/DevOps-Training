@@ -1,4 +1,7 @@
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+
+load_dotenv()
 
 from .redis_client import read_snapshot
 

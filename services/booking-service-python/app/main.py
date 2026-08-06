@@ -1,7 +1,10 @@
 import uuid
 from datetime import datetime, timezone
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+
+load_dotenv()
 
 from .ai_client import analyze_review
 from .db import get_db

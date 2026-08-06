@@ -4,6 +4,7 @@
 
 - **Node version:** 24.18.1
 - **npm version:** 11.16.0
+- **Python version (required):** 3.12.11
 
 ## Summary
 
@@ -11,6 +12,7 @@
 |---|-----|---------|
 | 1 | JWT_SECRET typo (`JWT_SECERT`) | auth-service-node |
 | 2 | Missing dotenv loading | auth-service-node (Node) |
+| 3 | Missing dotenv loading | ai-insight, analytics, booking (Python) |
 
 ---
 
@@ -33,4 +35,20 @@
 **Fix:**
 1. Added `dotenv` package to `package.json`
 2. Added `require('dotenv').config();` at top of `index.js`
+
+---
+
+## Bug 3: Missing dotenv — Python Services
+
+**Locations:**
+- `services/ai-insight-service-python/app/main.py`
+- `services/analytics-service-python/app/main.py`
+- `services/analytics-service-python/job.py`
+- `services/booking-service-python/app/main.py`
+
+**Description:** Python services were not loading `.env` files, so environment variables were unavailable at runtime.
+
+**Fix:**
+1. Added `python-dotenv==1.2.2` to each `requirements.txt`
+2. Added `from dotenv import load_dotenv` + `load_dotenv()` in each `main.py`/`job.py`
 
