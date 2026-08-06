@@ -20,6 +20,7 @@
 | 6 | Frontend routing — missing API Gateway | frontend |
 | 7 | Missing try/catch in `/login` handler | auth-service-node |
 | 8 | Missing JWT_SECRET fail-fast check | auth-service-node |
+| 9 | `express.json()` consumes body before proxy | api-gateway-node |
 
 ---
 
@@ -110,3 +111,13 @@
 **Description:** The service didn't validate `JWT_SECRET` at startup. If unset, `jwt.sign()` would throw during login, crashing the process.
 
 **Fix:** Added a startup check that throws immediately if `JWT_SECRET` is missing.
+
+---
+
+## Bug 9: `express.json()` Consumes Body Before Proxy
+
+**Location:** `services/api-gateway-node/src/index.js:8`
+
+**Description:** `express.json()` ran before the proxy middleware, draining the request stream. Every POST through the gateway arrived at the backend with an empty body.
+
+**Fix:** Removed `express.json()` from the gateway. The gateway only proxies — it never needs to parse request bodies itself.
