@@ -18,6 +18,7 @@
 | 4 | Missing `/health` in API-CONTRACT.md | legacy-catalog-java |
 | 5 | Vite/esbuild compatibility | frontend |
 | 6 | Frontend routing — missing API Gateway | frontend |
+| 7 | Missing try/catch in `/login` handler | auth-service-node |
 
 ---
 
@@ -88,3 +89,13 @@
 **Description:** Frontend routing was broken because there was no API Gateway to proxy external requests to internal services.
 
 **Fix:** Created `services/api-gateway-node/` as a Node.js API Gateway to handle frontend routing.
+
+---
+
+## Bug 7: Missing try/catch in `/login` Handler
+
+**Location:** `services/auth-service-node/src/routes/auth.js:28-43`
+
+**Description:** Async `/login` handler had no `try/catch`. Any error (DB down, missing `JWT_SECRET`) became an unhandled rejection that crashed the process.
+
+**Fix:** Wrapped handler body in `try/catch` to return `500` on failure, matching `/register`.

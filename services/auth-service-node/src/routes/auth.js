@@ -27,19 +27,26 @@ router.post('/register', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
-  const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-  const user = result.rows[0];
-  if (!user || !(await bcrypt.compare(password, user.password_hash))) {
-    return res.status(401).json({ error: 'invalid credentials' });
+  if (!email || !password) {
+    return res.status(400).json({ error: 'email and password are required' });
   }
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const user = result.rows[0];
+    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+      return res.status(401).json({ error: 'invalid credentials' });
+    }
 
-  // NOTE: token secret is read from the environment on purpose.
-  const token = jwt.sign(
-    { sub: user.id, email: user.email },
-    process.env.JWT_SECRET,
-    { expiresIn: '2h' }
-  );
-  res.json({ token });
+    // NOTE: token secret is read from the environment on purpose.
+    const token = jwt.sign(
+      { sub: user.id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '2h' }
+    );
+    res.json({ token });
+  } catch (err) {
+    res.status(500).json({ error: 'internal error' });
+  }
 });
 
 module.exports = router;
