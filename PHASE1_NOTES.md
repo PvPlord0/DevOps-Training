@@ -8,6 +8,12 @@
 - **OpenJDK:** 21.0.11
 - **Go version:** 1.24.4
 
+- **MySQL:** 8.4.11
+- **PostgreSQL:** 17.10
+- **MongoDB:** 8.0.28
+- **RabbitMQ:** 4.3.4
+- **Redis:** 8.0.2
+
 ## Summary
 
 | # | Bug | Service |
