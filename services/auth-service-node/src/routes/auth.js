@@ -1,7 +1,25 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const fs = require('fs');
+const path = require('path');
 const { pool } = require('../db');
+
+function loadKeyFromFile(filePath) {
+  if (!filePath) {
+    throw new Error('File path is required');
+  }
+
+  try {
+    const key = fs.readFileSync(path.resolve(filePath), 'utf8').trim();
+    if (!key) throw new Error('File is empty');
+    return key;
+  } catch (err) {
+    throw new Error(`Failed to load file: ${err.message}`);
+  }
+}
+
+const privateKey = loadKeyFromFile(process.env.JWT_PRIVATE_KEY_PATH);
 
 const router = express.Router();
 
@@ -37,11 +55,10 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'invalid credentials' });
     }
 
-    // NOTE: token secret is read from the environment on purpose.
     const token = jwt.sign(
       { sub: user.id, email: user.email },
-      process.env.JWT_SECRET,
-      { expiresIn: '2h' }
+      privateKey,
+      { algorithm: 'RS256', expiresIn: '2h' }
     );
     res.json({ token });
   } catch (err) {

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 
 load_dotenv()
 
@@ -17,6 +17,12 @@ app = FastAPI(title="booking-service")
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
+def _verify_user_id(user_id: str, request: Request):
+    """Verify that the userId in the request matches the authenticated user."""
+    auth_user_id = request.headers.get("x-user-id")
+    if auth_user_id != user_id:
+        raise HTTPException(status_code=403, detail="userId does not match authenticated user")
+
 
 @app.get("/health")
 def health():
@@ -24,7 +30,9 @@ def health():
 
 
 @app.post("/api/bookings", status_code=201)
-def create_booking(payload: BookingRequest):
+def create_booking(payload: BookingRequest, request: Request):
+    _verify_user_id(payload.userId, request)
+
     db = get_db()
     booking = {
         "id": str(uuid.uuid4()),
