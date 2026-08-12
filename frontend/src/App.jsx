@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from './api';
 import Dashboard from './Dashboard';
 
-export default function App() {
+export default function App({ onLogout }) {
   const [tab, setTab] = useState('catalog');
   const [catalog, setCatalog] = useState([]);
   const [error, setError] = useState(null);
@@ -13,7 +13,14 @@ export default function App() {
 
   return (
     <div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
-      <h1>EventHub</h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+        <h1>EventHub</h1>
+        {onLogout && (
+          <button onClick={onLogout} type="button">
+            Logout
+          </button>
+        )}
+      </div>
 
       <div style={{ marginBottom: '1rem' }}>
         <button onClick={() => setTab('catalog')} disabled={tab === 'catalog'}>
