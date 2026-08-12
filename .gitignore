@@ -1,10 +1,4 @@
-**/.env
-
-**/target/
-**/node_modules/
-**/.venv/
-**/__pycache__/
-**/logs/
-**/.python-version
-
-*.log
+# Ignore everything
+/*
+# Except the architecture diagram
+!/DevOps.1.3.drawio.pdf
