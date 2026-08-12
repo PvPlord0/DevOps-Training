@@ -3,9 +3,29 @@ const BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   'http://localhost:8080';
 
+let authToken = localStorage.getItem('authToken');
+
+export function setAuthToken(token) {
+  authToken = token;
+  localStorage.setItem('authToken', token);
+}
+
+export function clearAuthToken() {
+  authToken = null;
+  localStorage.removeItem('authToken');
+}
+
+export function getAuthToken() {
+  return authToken;
+}
+
 async function request(path, options = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+  if (authToken) {
+    headers['Authorization'] = `Bearer ${authToken}`;
+  }
   const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    headers,
     ...options,
   });
   if (!res.ok) {
