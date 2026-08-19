@@ -1,4 +1,4 @@
-# Stage 1: Build Java JAR using Maven with JDK 21
+#Catalog
 FROM docker.io/library/maven:3.9-eclipse-temurin-21-alpine AS builder
 
 WORKDIR /app
@@ -9,7 +9,6 @@ RUN mvn dependency:go-offline -B
 COPY src ./src
 RUN mvn clean package -DskipTests -B
 
-# Stage 2: OpenJDK 21 Runtime
 FROM docker.io/library/eclipse-temurin:21.0.11_10-jre-alpine
 
 WORKDIR /app

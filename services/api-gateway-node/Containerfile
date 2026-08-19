@@ -1,4 +1,4 @@
-# Stage 1: Dependency builder
+# GateWay
 FROM docker.io/library/node:24.18.1-alpine AS builder
 
 WORKDIR /app
@@ -6,7 +6,6 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production || npm install --only=production
 
-# Stage 2: Minimal Runtime
 FROM docker.io/library/node:24.18.1-alpine
 
 WORKDIR /app

@@ -1,4 +1,4 @@
-# Stage 1: Compile static binary using Go 1.24.4
+#Notification
 FROM docker.io/library/golang:1.24.4-alpine AS builder
 
 WORKDIR /app
@@ -9,7 +9,6 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o notification-worker main.go
 
-# Stage 2: Minimal Alpine Runtime
 FROM docker.io/library/alpine:latest
 
 WORKDIR /app
