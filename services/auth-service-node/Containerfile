@@ -6,16 +6,14 @@ RUN npm ci
 
 COPY . .
 
-ENV \
-  PORT=8082 \
-  PGHOST=eh-pg \
-  PGPORT=5432 \
-  PGUSER=eventhub \
-  PGDATABASE=eventhub_auth \
-  JWT_PRIVATE_KEY_PATH=./keys/private.pem
+ENV PORT=8082
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 USER appuser
 
 EXPOSE 8082
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \
+  CMD nc -z localhost 8082 > /dev/null 2>&1 || exit 1
+
 CMD ["node", "src/index.js"]
