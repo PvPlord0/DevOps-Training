@@ -1,0 +1,21 @@
+FROM node:24.18.1-alpine3.24
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+
+ENV \
+  PORT=8080 \
+  JWT_PUBLIC_KEY_PATH=./keys/public.pem
+
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \
+  CMD nc -z localhost 8080 > /dev/null 2>&1 || exit 1
+
+CMD ["node", "src/index.js"]
