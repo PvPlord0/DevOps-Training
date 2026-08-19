@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const path = require('path');
 const { createProxyMiddleware } = require('http-proxy-middleware');
+const console = require('console');
 
 function loadKeyFromFile(filePath) {
   if (!filePath) {
@@ -25,14 +26,11 @@ app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:3000' }));
 
 const publicKey = loadKeyFromFile(process.env.JWT_PUBLIC_KEY_PATH);
 
-const routes = {
-  '/api/catalog': 'http://localhost:8081',
-  '/api/auth': 'http://localhost:8082',
-  '/api/bookings': 'http://localhost:8083',
-  '/api/reviews': 'http://localhost:8083',
-  '/api/analyze': 'http://localhost:8084',
-  '/api/analytics': 'http://localhost:8085',
-};
+const routes = Object.fromEntries(
+  Object.entries(process.env)
+    .filter(([key]) => key.startsWith('ROUTE__'))
+    .map(([key, value]) => [key.replace('ROUTE_', '').toLowerCase().replace(/_/g, '/')  , value])
+);
 
 function skipAuth(req) {
   return req.path === '/health' || req.path.startsWith('/api/auth');
