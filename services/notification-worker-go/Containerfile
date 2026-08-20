@@ -1,0 +1,34 @@
+# FROM golang:1.22-alpine AS builder  
+
+# WORKDIR /app
+
+# COPY . .
+
+# ENV PORT=8083 \
+#     NODE_ENV=production \
+#     RABBITMQ_URL=amqp://guest:guest@localhost:5672/ \
+#     RABBITMQ_QUEUE=bookings
+
+# HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 CMD wget --quiet --spider http://
+
+# CMD [ "go", "run", "main.go" ]
+
+FROM golang:1.22-alpine AS builder
+
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/notification-worker ./main.go
+
+FROM alpine:3.20
+
+WORKDIR /app
+
+COPY --from=builder /out/notification-worker ./notification-worker
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD pgrep notification-worker >/dev/null || exit 1
+
+CMD ["./notification-worker"]

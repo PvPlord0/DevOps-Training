@@ -21,17 +21,17 @@ function loadKeyFromFile(filePath) {
 }
 
 const app = express();
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:3000' }));
+app.use(cors({ origin: process.env.FRONTEND_URL || 'http://frontend:3000' }));
 
 const publicKey = loadKeyFromFile(process.env.JWT_PUBLIC_KEY_PATH);
 
 const routes = {
-  '/api/catalog': 'http://localhost:8081',
-  '/api/auth': 'http://localhost:8082',
-  '/api/bookings': 'http://localhost:8083',
-  '/api/reviews': 'http://localhost:8083',
-  '/api/analyze': 'http://localhost:8084',
-  '/api/analytics': 'http://localhost:8085',
+  '/api/catalog': 'http://legacy-catalog:8081',
+  '/api/auth': 'http://auth-service:8082',
+  '/api/bookings': 'http://booking-service:8083',
+  '/api/reviews': 'http://reviews-service:8083',
+  '/api/analyze': 'http://ai-insight:8084',
+  '/api/analytics': 'http://analytics-service:8085',
 };
 
 function skipAuth(req) {
