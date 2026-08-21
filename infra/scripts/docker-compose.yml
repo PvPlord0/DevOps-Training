@@ -1,0 +1,230 @@
+name: eh
+services:
+  # ── Databases ──────────────────────────────────────────────────────
+  eh-pg:
+    image: postgres:17.10-alpine3.24
+    container_name: eh-pg
+    environment:
+      POSTGRES_USER: eventhub
+      POSTGRES_PASSWORD: eventhub
+      POSTGRES_DB: eventhub_auth
+    volumes:
+      - eh-pg-data:/var/lib/postgresql/data:Z
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "eventhub"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - eventhub-net
+
+  eh-mysql:
+    image: mysql:8.4.11
+    container_name: eh-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: eventhub_catalog
+    volumes:
+      - eh-mysql-data:/var/lib/mysql:Z
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "--silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - eventhub-net
+
+  eh-mongo:
+    image: mongo:8.0.28
+    container_name: eh-mongo
+    volumes:
+      - eh-mongo-data:/data/db:Z
+      - type: tmpfs
+        target: /data/configdb
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --eval 'db.runCommand(\"ping\").ok' --quiet"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - eventhub-net
+
+  eh-rabbitmq:
+    image: rabbitmq:4.3.4-alpine
+    container_name: eh-rabbitmq
+    volumes:
+      - eh-rabbitmq-data:/var/lib/rabbitmq:Z
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    networks:
+      - eventhub-net
+
+  eh-redis:
+    image: redis:8.0.2-alpine
+    container_name: eh-redis
+    volumes:
+      - eh-redis-data:/data:Z
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - eventhub-net
+
+  # ── Application services ───────────────────────────────────────────
+  eh-auth:
+    image: eh-auth
+    container_name: eh-auth-cont
+    environment:
+      PGHOST: eh-pg
+      PGPORT: "5432"
+      PGUSER: eventhub
+      PGPASSWORD: eventhub
+      PGDATABASE: eventhub_auth
+      JWT_PRIVATE_KEY_PATH: /app/keys/private.pem
+    volumes:
+      - ../../keys/private.pem:/app/keys/private.pem:Z,ro
+    depends_on:
+      eh-pg:
+        condition: service_healthy
+    networks:
+      - eventhub-net
+
+  eh-catalog:
+    image: eh-catalog
+    container_name: eh-catalog-cont
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://eh-mysql:3306/eventhub_catalog
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: rootpassword
+    depends_on:
+      eh-mysql:
+        condition: service_healthy
+    networks:
+      - eventhub-net
+
+  eh-insight:
+    image: eh-insight
+    container_name: eh-insight-cont
+    environment:
+      OLLAMA_URL: ""
+      OLLAMA_MODEL: llama3.2:1b
+    networks:
+      - eventhub-net
+
+  eh-notification:
+    image: eh-notification
+    container_name: eh-notification-cont
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@eh-rabbitmq:5672/
+      RABBITMQ_QUEUE: bookings
+    depends_on:
+      eh-rabbitmq:
+        condition: service_healthy
+    networks:
+      - eventhub-net
+
+  eh-booking:
+    image: eh-booking
+    container_name: eh-booking-cont
+    environment:
+      MONGO_URI: mongodb://eh-mongo:27017
+      MONGO_DB: eventhub_bookings
+      RABBITMQ_URL: amqp://guest:guest@eh-rabbitmq:5672/
+      RABBITMQ_QUEUE: bookings
+      AI_INSIGHT_URL: http://eh-insight-cont:8084
+    depends_on:
+      eh-mongo:
+        condition: service_healthy
+      eh-rabbitmq:
+        condition: service_healthy
+      eh-insight:
+        condition: service_healthy
+    networks:
+      - eventhub-net
+
+  eh-analytics:
+    image: eh-analytics
+    container_name: eh-analytics-cont
+    environment:
+      REDIS_URL: redis://eh-redis:6379/0
+      BOOKING_SERVICE_URL: http://eh-booking-cont:8083
+      CATALOG_SERVICE_URL: http://eh-catalog-cont:8081
+      SNAPSHOT_KEY: analytics:snapshot
+    depends_on:
+      eh-redis:
+        condition: service_healthy
+      eh-booking:
+        condition: service_healthy
+      eh-catalog:
+        condition: service_healthy
+    networks:
+      - eventhub-net
+
+  eh-gateway:
+    image: eh-gateway
+    container_name: eh-gateway-cont
+    ports:
+      - "8080:8080"
+    environment:
+      FRONTEND_URL: http://localhost:3000
+      ROUTE__API_CATALOG: http://eh-catalog-cont:8081
+      ROUTE__API_AUTH: http://eh-auth-cont:8082
+      ROUTE__API_BOOKINGS: http://eh-booking-cont:8083
+      ROUTE__API_REVIEWS: http://eh-booking-cont:8083
+      ROUTE__API_ANALYZE: http://eh-insight-cont:8084
+      ROUTE__API_ANALYTICS: http://eh-analytics-cont:8085
+      JWT_PUBLIC_KEY_PATH: /app/keys/public.pem
+    volumes:
+      - ../../keys/public.pem:/app/keys/public.pem:Z,ro
+    networks:
+      - eventhub-net
+
+  eh-frontend:
+    image: eh-frontend
+    container_name: eh-frontend-cont
+    ports:
+      - "3000:3000"
+    depends_on:
+      eh-gateway:
+        condition: service_started
+    networks:
+      - eventhub-net
+
+  # ── Python job ────────────────────────────────────
+  eh-analytics-job:
+    image: eh-analytics
+    container_name: eh-analytics-job-cont
+    environment:
+      REDIS_URL: redis://eh-redis:6379/0
+      BOOKING_SERVICE_URL: http://eh-booking-cont:8083
+      CATALOG_SERVICE_URL: http://eh-catalog-cont:8081
+      SNAPSHOT_KEY: analytics:snapshot
+    command: ["python", "job.py"]
+    depends_on:
+      eh-analytics:
+        condition: service_started
+    networks:
+      - eventhub-net
+
+# ── Volumes ───────────────────────────────────────────────────────
+volumes:
+  eh-pg-data:
+    name: eh-pg-data
+  eh-mysql-data:
+    name: eh-mysql-data
+  eh-mongo-data:
+    name: eh-mongo-data
+  eh-rabbitmq-data:
+    name: eh-rabbitmq-data
+  eh-redis-data:
+    name: eh-redis-data
+
+# ── Network ───────────────────────────────────────────────────────
+networks:
+  eventhub-net:
+    driver: bridge
