@@ -1,0 +1,345 @@
+services:
+  # DataBases
+  postgreSQL:
+    image: docker.io/library/postgres:17.10
+    container_name: "eventhub-postgres"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db-seed/postgres-seed.sql:/docker-entrypoint-initdb.d/postgres-seed.sql:ro
+    networks:
+      - eventhub-net
+    environment:
+      POSTGRES_USER: ${PGUSER:-auth_user}
+      POSTGRES_PASSWORD: ${PGPASSWORD:-auth_secure_pass}
+      POSTGRES_DB: ${PGDATABASE:-auth_db}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PGUSER:-auth_user} -d ${PGDATABASE:-auth_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  mysql:
+    image: docker.io/library/mysql:8.4.11
+    container_name: "eventhub-mysql"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db-seed/mysql-seed.sql:/docker-entrypoint-initdb.d/mysql-seed.sql:ro
+    networks:
+      - eventhub-net
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_secure_pass}
+      MYSQL_USER: ${MYSQL_USER:-catalog_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-catalog_pass}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-eventhub_catalog}
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u ${MYSQL_USER:-catalog_user} -p${MYSQL_PASSWORD:-catalog_pass}"]
+      interval: 10s
+      timeout: 310s
+      retries: 10
+      start_period: 300s
+    command: >
+      --innodb-flush-log-at-trx-commit=2
+      --innodb-doublewrite=0
+      --sync-binlog=0
+
+  mongo:
+    image: docker.io/library/mongo:8.0.28
+    container_name: "eventhub-mongodb"
+    volumes:
+      - mongo_data:/data/db
+      - ./db-seed/mongo-seed.js:/docker-entrypoint-initdb.d/mongo-seed.js:ro
+    networks:
+      - eventhub-net
+    environment:
+      GLIBC_TUNABLES: "glibc.pthread.rseq=1"
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-booking_user}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS:-booking_pass}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-eventhub_bookings}
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --eval 'db.runCommand(\"ping\").ok' --quiet"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  redis:
+    image: docker.io/library/redis:8.0.2
+    container_name: "eventhub-redis"
+    volumes:
+      - redis_data:/data
+    networks:
+      - eventhub-net
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+
+  rabbitMQ:
+    image: docker.io/library/rabbitmq:4.3.4-management
+    container_name: "eventhub-rabbitmq"
+    user: root
+    entrypoint: >
+      bash -c "if [ -n \"$$RABBITMQ_ERLANG_COOKIE\" ]; then
+                 echo \"$$RABBITMQ_ERLANG_COOKIE\" > /var/lib/rabbitmq/.erlang.cookie
+                 chmod 600 /var/lib/rabbitmq/.erlang.cookie
+               fi &&
+               chown -R rabbitmq:rabbitmq /var/lib/rabbitmq &&
+               exec docker-entrypoint.sh rabbitmq-server"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - eventhub-net
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-eventhub_mq}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-mq_secure_pass}
+      RABBITMQ_ERLANG_COOKIE: "EVENTHUB_SECRET_COOKIE_123"
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  #Services
+  auth:
+    build:
+      context: ./services/auth-service-node
+      dockerfile: Containerfile
+    container_name: auth-service
+    volumes:
+      - ./keys:/app/keys:ro
+    networks:
+      - eventhub-net
+    environment:
+      PGHOST: eventhub-postgres
+      PGUSER: ${PGUSER:-auth_user}
+      PGPASSWORD: ${PGPASSWORD:-auth_secure_pass}
+      PGDATABASE: ${PGDATABASE:-auth_db}
+      KEYS_DIR: ./keys
+      JWT_PRIVATE_KEY_PATH: ./keys/private.pem
+      JWT_PUBLIC_KEY_PATH: ./keys/public.pem
+      PRIVATE_KEY_PATH: ./keys/private.pem
+      PUBLIC_KEY_PATH: ./keys/public.pem
+      KEY_PATH: ./keys/private.pem
+    depends_on:
+      postgreSQL:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:8082/health', (r) => process.exit(0)).on('error', () => process.exit(1))\""]
+      interval: 5s
+      retries: 15
+    restart: unless-stopped
+
+  catalog:
+    build:
+      context: ./services/legacy-catalog-java
+      dockerfile: Containerfile
+    container_name: legacy-catalog-java
+    networks:
+      - eventhub-net
+    environment:
+      DB_HOST: eventhub-mysql
+      DB_PORT: 3306
+      DB_USER: ${MYSQL_USER:-catalog_user}
+      DB_PASS: ${MYSQL_PASSWORD:-catalog_pass}
+      DB_NAME: ${MYSQL_DATABASE:-eventhub_catalog}
+      SPRING_DATASOURCE_URL: "jdbc:mysql://eventhub-mysql:3306/${MYSQL_DATABASE:-eventhub_catalog}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-catalog_user}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-catalog_pass}
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: "org.hibernate.dialect.MySQL8Dialect"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 8081 || exit 1"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
+  ai-insight:
+    build:
+      context: ./services/ai-insight-service-python
+      dockerfile: Containerfile
+    container_name: ai-insights
+    networks:
+      - eventhub-net
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import socket; socket.create_connection(('127.0.0.1', 8084), timeout=2)\""]
+      interval: 5s
+      retries: 15
+    restart: unless-stopped
+
+  booking:
+    build:
+      context: ./services/booking-service-python
+      dockerfile: Containerfile
+    container_name: booking-service
+    networks:
+      - eventhub-net
+    environment:
+      MONGO_HOST: eventhub-mongodb
+      MONGODB_HOST: eventhub-mongodb
+      MONGO_PORT: 27017
+      MONGODB_PORT: 27017
+      MONGO_USER: ${MONGO_USER:-booking_user}
+      MONGO_PASS: ${MONGO_PASS:-booking_pass}
+      MONGO_DB: ${MONGO_DB:-eventhub_bookings}
+      MONGODB_DB: ${MONGO_DB:-eventhub_bookings}
+      MONGO_URI: "mongodb://${MONGO_USER:-booking_user}:${MONGO_PASS:-booking_pass}@eventhub-mongodb:27017/${MONGO_DB:-eventhub_bookings}?authSource=admin"
+      MONGODB_URI: "mongodb://${MONGO_USER:-booking_user}:${MONGO_PASS:-booking_pass}@eventhub-mongodb:27017/${MONGO_DB:-eventhub_bookings}?authSource=admin"
+      MONGO_URL: "mongodb://${MONGO_USER:-booking_user}:${MONGO_PASS:-booking_pass}@eventhub-mongodb:27017/${MONGO_DB:-eventhub_bookings}?authSource=admin"
+      MONGODB_URL: "mongodb://${MONGO_USER:-booking_user}:${MONGO_PASS:-booking_pass}@eventhub-mongodb:27017/${MONGO_DB:-eventhub_bookings}?authSource=admin"
+      AI_INSIGHT_URL: "http://ai-insights:8084"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      ai-insight:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import socket; socket.create_connection(('127.0.0.1', 8083), timeout=2)\""]
+      interval: 5s
+      retries: 15
+    restart: unless-stopped
+
+  analytic:
+    build:
+      context: ./services/analytics-service-python
+      dockerfile: Containerfile
+    container_name: analytics-service-python
+    networks:
+      - eventhub-net
+    environment:
+      REDIS_HOST: eventhub-redis
+      REDIS_HOSTNAME: eventhub-redis
+      REDIS_PORT: 6379
+      REDIS_URL: "redis://eventhub-redis:6379"
+      REDIS_URI: "redis://eventhub-redis:6379"
+      CATALOG_SERVICE_URL: "http://legacy-catalog-java:8081"
+      BOOKING_SERVICE_URL: "http://booking-service:8083"
+    depends_on:
+      redis:
+        condition: service_healthy
+      catalog:
+        condition: service_healthy
+      booking:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import socket; socket.create_connection(('127.0.0.1', 8085), timeout=2)\""]
+      interval: 5s
+      retries: 15
+    restart: unless-stopped
+
+  notification:
+    build:
+      context: ./services/notification-worker-go
+      dockerfile: Containerfile
+    container_name: notification-worker
+    networks:
+      - eventhub-net
+    environment:
+      RABBITMQ_HOST: eventhub-rabbitmq
+      RABBIT_HOST: eventhub-rabbitmq
+      AMQP_HOST: eventhub-rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: ${RABBITMQ_USER:-eventhub_mq}
+      RABBITMQ_PASS: ${RABBITMQ_PASS:-mq_secure_pass}
+      RABBITMQ_URL: "amqp://${RABBITMQ_USER:-eventhub_mq}:${RABBITMQ_PASS:-mq_secure_pass}@eventhub-rabbitmq:5672/"
+      AMQP_URL: "amqp://${RABBITMQ_USER:-eventhub_mq}:${RABBITMQ_PASS:-mq_secure_pass}@eventhub-rabbitmq:5672/"
+    depends_on:
+      rabbitMQ:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f notification || exit 1"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: ./services/api-gateway-node
+      dockerfile: Containerfile
+    container_name: api-gateway-node
+    networks:
+      - eventhub-net
+    volumes:
+      - ./keys:/app/keys:ro
+    ports:
+      - "8080:8080"
+    environment:
+      KEYS_DIR: ./keys
+      JWT_PUBLIC_KEY_PATH: ./keys/public.pem
+      PUBLIC_KEY_PATH: ./keys/public.pem
+      JWT_PRIVATE_KEY_PATH: ./keys/private.pem
+      PRIVATE_KEY_PATH: ./keys/private.pem
+      KEY_PATH: ./keys/public.pem
+      CATALOG_SERVICE_URL: "http://legacy-catalog-java:8081"
+      AUTH_SERVICE_URL: "http://auth-service:8082"
+      BOOKING_SERVICE_URL: "http://booking-service:8083"
+      AI_SERVICE_URL: "http://ai-insights:8084"
+      ANALYTICS_SERVICE_URL: "http://analytics-service-python:8085"
+    depends_on:
+      auth:
+        condition: service_healthy
+      catalog:
+        condition: service_healthy
+      booking:
+        condition: service_healthy
+      analytic:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:8080/health', (r) => process.exit(0)).on('error', () => process.exit(1))\""]
+      interval: 5s
+      retries: 15
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Containerfile
+    container_name: frontend-react
+    networks:
+      - eventhub-net
+    ports:
+      - "3000:3000"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/ || exit 1"]
+      interval: 5s
+      retries: 15
+    restart: unless-stopped
+
+  #DashBoard Updater
+  analytic-job:
+    build:
+      context: ./services/analytics-service-python
+      dockerfile: Containerfile
+    container_name: DashBoard-Update
+    networks:
+      - eventhub-net
+    environment:
+      REDIS_HOST: eventhub-redis
+      REDIS_HOSTNAME: eventhub-redis
+      REDIS_PORT: 6379
+      REDIS_URL: "redis://eventhub-redis:6379"
+      REDIS_URI: "redis://eventhub-redis:6379"
+      CATALOG_SERVICE_URL: "http://legacy-catalog-java:8081"
+      BOOKING_SERVICE_URL: "http://booking-service:8083"
+    depends_on:
+      analytic:
+        condition: service_healthy
+    command: python job.py
+    restart: "no"
+
+networks:
+  eventhub-net:
+volumes:
+  postgres_data:
+  mysql_data:
+  mongo_data:
+  redis_data:
+  rabbitmq_data:
