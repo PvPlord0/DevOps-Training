@@ -12,8 +12,6 @@ WORKDIR /app
 COPY --from=builder /install /usr/local
 COPY app ./app
 
-ENV PORT=8084 \
-    OLLAMA_MODEL=llama3.2:1b
 
 EXPOSE 8084
 

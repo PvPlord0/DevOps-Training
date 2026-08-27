@@ -1,0 +1,239 @@
+services:
+  mysql: 
+    image: docker.io/library/mysql:8.4
+    container_name: mysql 
+    ports:
+      - "3306:3306"
+    networks:
+      - eventhub-net
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ../../db-seed/mysql-seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: eventhub_catalog
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-prootpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 25
+
+  postgres:
+    image: docker.io/library/postgres:16-alpine
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    networks:
+      - eventhub-net
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: eventhub
+      POSTGRES_PASSWORD: eventhub
+      POSTGRES_DB: eventhub_auth
+
+  rabbitmq:
+    image: docker.io/library/rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "15672:15672"
+    networks:
+      - eventhub-net
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: eventhub
+      RABBITMQ_DEFAULT_PASS: eventhub-password
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 5672 || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+      start_period: 10s
+  
+  mongodb:
+    image: docker.io/library/mongo:7
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    networks:
+      - eventhub-net
+    volumes:
+      - mongodb-data:/data/db
+      - ../../db-seed/mongo-seed.js:/docker-entrypoint-initdb.d/seed.js:ro
+    environment:
+      MONGO_INITDB_DATABASE: eventhub_bookings
+  
+  redis:
+    image: docker.io/library/redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - eventhub-net
+    volumes:
+      - redis-data:/data
+  
+
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Containerfile
+    image: localhost/frontend-image:latest
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    networks:
+      - eventhub-net
+    environment:
+      VITE_API_BASE_URL: http://localhost:8080
+  
+  api-gateway:
+    build:
+      context: ../../services/api-gateway-node
+      dockerfile: Containerfile
+    image: localhost/api-gateway-image:latest
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    networks:
+      - eventhub-net
+    environment:
+      FRONTEND_URL: http://localhost:3000
+      JWT_PUBLIC_KEY_PATH: /app/keys/public.pem
+      NODE_ENV: production
+      PORT: 8080
+    volumes:
+      - ../../services/api-gateway-node/public.pem:/app/keys/public.pem
+
+  legacy-catalog:
+    build:
+      context: ../../services/legacy-catalog-java
+      dockerfile: Containerfile
+    image: localhost/legacy-catalog-image:latest
+    container_name: legacy-catalog
+    ports:
+      - "8081:8081"
+    networks:
+      - eventhub-net
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/eventhub_catalog
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: rootpassword
+      SERVER_PORT: 8081
+    depends_on:
+      mysql : 
+        condition: service_healthy
+  
+  auth-service:
+    build:
+      context: ../../services/auth-service-node
+      dockerfile: Containerfile
+    image: localhost/auth-service-image:latest
+    container_name: auth-service
+    ports:
+      - "8082:8082"
+    networks:
+      - eventhub-net
+    environment:
+      JWT_PRIVATE_KEY_PATH: /app/keys/private.pem
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: eventhub
+      PGPASSWORD: eventhub
+      PGDATABASE: eventhub_auth
+      PORT: 8082
+      NODE_ENV: production
+    volumes:
+      - ../../services/auth-service-node/private.pem:/app/keys/private.pem
+    depends_on:
+      - postgres
+
+  booking-service:
+    build:
+      context: ../../services/booking-service-python
+      dockerfile: Containerfile
+    image: localhost/booking-service-image:latest
+    container_name: booking-service
+    ports:
+      - "8083:8083"
+    networks:
+      - eventhub-net
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/eventhub_bookings
+      MONGO_DB: eventhub_bookings
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      RABBITMQ_QUEUE: bookings
+      AI_INSIGHT_URL: http://ai-insight:8084
+      PORT: 8083
+    depends_on:
+      - mongodb
+      - rabbitmq
+      - ai-insight
+  ai-insight: 
+    build:
+      context: ../../services/ai-insight-service-python
+      dockerfile: Containerfile
+    image: localhost/ai-insight-image:latest
+    container_name: ai-insight
+    ports:
+      - "8084:8084"
+    networks:
+      - eventhub-net
+    environment:
+      PORT: 8084 
+      OLLAMA_MODEL: llama3.2:1b
+  
+  analytics-service:
+    build:
+      context: ../../services/analytics-service-python
+      dockerfile: Containerfile
+    image: localhost/analytics-service-image:latest
+    container_name: analytics-service
+    ports:
+      - "8085:8085"
+    networks:
+      - eventhub-net
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_URL: redis://redis:6379/0
+      BOOKING_SERVICE_URL: http://booking-service:8083
+      CATALOG_SERVICE_URL: http://legacy-catalog:8081
+      SNAPSHOT_KEY: analytics:snapshot
+      PORT: 8085
+    depends_on:
+      - redis 
+      - booking-service
+      - legacy-catalog
+
+  notification-worker:
+    build:
+      context: ../../services/notification-worker-go
+      dockerfile: Containerfile
+    image: localhost/notification-worker-image:latest
+    container_name: notification-worker
+    networks:
+      - eventhub-net
+    environment:
+      RABBITMQ_URL: amqp://eventhub:eventhub-password@rabbitmq:5672/
+      RABBITMQ_QUEUE: bookings
+      PORT: 8083
+      NODE_ENV: production
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+
+
+networks:
+  eventhub-net: {name: eventhub-net}
+
+
+
+volumes:
+  mysql-data: {name: mysql-data}
+  pgdata: {name: pgdata}
+  rabbitmq-data: {name: rabbitmq-data}
+  mongodb-data: {name: mongodb-data}
+  redis-data: {name: redis-data}

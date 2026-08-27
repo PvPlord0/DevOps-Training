@@ -16,7 +16,7 @@ containers=(
     legacy-catalog
     auth-service
     booking-service
-    ai-insight-service
+    ai-insight
     analytics-service
     notification-worker
 )
