@@ -125,6 +125,8 @@ spec:
               value: eventhub
             - name: POSTGRES_DB
               value: eventhub_auth
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
@@ -155,6 +157,16 @@ spec:
       containers:
         - name: rabbitmq
           image: docker.io/library/rabbitmq:3-management-alpine
+          command: ["sh", "-c"]
+          args:
+            - >-
+              umask 077;
+              if [ ! -f /var/lib/rabbitmq/.erlang.cookie ]; then
+                printf '%s' "$RABBITMQ_ERLANG_COOKIE" > /var/lib/rabbitmq/.erlang.cookie;
+              else
+                chmod 600 /var/lib/rabbitmq/.erlang.cookie;
+              fi;
+              exec /usr/local/bin/docker-entrypoint.sh rabbitmq-server
           ports:
             - name: amqp
               containerPort: 5672
@@ -165,6 +177,8 @@ spec:
               value: eventhub
             - name: RABBITMQ_DEFAULT_PASS
               value: eventhub-password
+            - name: RABBITMQ_ERLANG_COOKIE
+              value: eventhub-cluster-cookie
           volumeMounts:
             - name: data
               mountPath: /var/lib/rabbitmq
@@ -271,14 +285,11 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: frontend-image:latest
+          image: docker.io/abdoislam/frontend-image:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 3000
-          env:
-            - name: VITE_API_BASE_URL
-              value: http://api-gateway:8080
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -296,14 +307,14 @@ spec:
     spec:
       containers:
         - name: api-gateway
-          image: api-gateway-image:latest
+          image: docker.io/abdoislam/api-gateway-image:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 8080
           env:
             - name: FRONTEND_URL
-              value: http://frontend:3000
+              value: https://frontend-abdo-islam-dev.apps.rm1.0a51.p1.openshiftapps.com
             - name: JWT_PUBLIC_KEY_PATH
               value: /app/keys/public.pem
             - name: NODE_ENV
@@ -344,7 +355,7 @@ spec:
     spec:
       containers:
         - name: legacy-catalog
-          image: legacy-catalog-image:latest
+          image: docker.io/abdoislam/legacy-catalog-image:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -381,7 +392,7 @@ spec:
     spec:
       containers:
         - name: auth-service
-          image: auth-service-image:latest
+          image: docker.io/abdoislam/auth-service-image:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -437,7 +448,7 @@ spec:
     spec:
       containers:
         - name: booking-service
-          image: booking-service-image:latest
+          image: docker.io/abdoislam/booking-service-image:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -478,7 +489,7 @@ spec:
     spec:
       containers:
         - name: ai-insight
-          image: ai-insight-image:latest
+          image: docker.io/abdoislam/ai-insight-image:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -511,7 +522,7 @@ spec:
     spec:
       containers:
         - name: analytics-service
-          image: analytics-service-image:latest
+          image: docker.io/abdoislam/analytics-service-image:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -554,7 +565,7 @@ spec:
     spec:
       containers:
         - name: notification-worker
-          image: notification-worker-image:latest
+          image: docker.io/abdoislam/notification-worker-image:latest
           imagePullPolicy: IfNotPresent
           env:
             - name: RABBITMQ_URL

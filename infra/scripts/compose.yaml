@@ -79,7 +79,7 @@ services:
     build:
       context: ../../frontend
       dockerfile: Containerfile
-    image: localhost/frontend-image:latest
+    image: docker.io/abdoislam/frontend-image:latest
     container_name: frontend
     ports:
       - "3000:3000"
@@ -92,7 +92,7 @@ services:
     build:
       context: ../../services/api-gateway-node
       dockerfile: Containerfile
-    image: localhost/api-gateway-image:latest
+    image: docker.io/abdoislam/api-gateway-image:latest
     container_name: api-gateway
     ports:
       - "8080:8080"
@@ -110,7 +110,7 @@ services:
     build:
       context: ../../services/legacy-catalog-java
       dockerfile: Containerfile
-    image: localhost/legacy-catalog-image:latest
+    image: docker.io/abdoislam/legacy-catalog-image:latest
     container_name: legacy-catalog
     ports:
       - "8081:8081"
@@ -129,7 +129,7 @@ services:
     build:
       context: ../../services/auth-service-node
       dockerfile: Containerfile
-    image: localhost/auth-service-image:latest
+    image: docker.io/abdoislam/auth-service-image:latest
     container_name: auth-service
     ports:
       - "8082:8082"
@@ -153,7 +153,7 @@ services:
     build:
       context: ../../services/booking-service-python
       dockerfile: Containerfile
-    image: localhost/booking-service-image:latest
+    image: docker.io/abdoislam/booking-service-image:latest
     container_name: booking-service
     ports:
       - "8083:8083"
@@ -174,7 +174,7 @@ services:
     build:
       context: ../../services/ai-insight-service-python
       dockerfile: Containerfile
-    image: localhost/ai-insight-image:latest
+    image: docker.io/abdoislam/ai-insight-image:latest
     container_name: ai-insight
     ports:
       - "8084:8084"
@@ -188,7 +188,7 @@ services:
     build:
       context: ../../services/analytics-service-python
       dockerfile: Containerfile
-    image: localhost/analytics-service-image:latest
+    image: docker.io/abdoislam/analytics-service-image:latest
     container_name: analytics-service
     ports:
       - "8085:8085"
@@ -211,7 +211,7 @@ services:
     build:
       context: ../../services/notification-worker-go
       dockerfile: Containerfile
-    image: localhost/notification-worker-image:latest
+    image: docker.io/abdoislam/notification-worker-image:latest
     container_name: notification-worker
     networks:
       - eventhub-net

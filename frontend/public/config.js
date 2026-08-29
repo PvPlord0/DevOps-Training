@@ -1,5 +1,4 @@
-// Local dev default. Keep the API URL wired through this file rather than
-// hardcoding it elsewhere in the app -- it matters more in a later phase.
+// Use the frontend origin; Vite proxies /api to the internal gateway Service.
 window.__ENV__ = {
-  API_BASE_URL: "http://api-gateway:8080",
+  API_BASE_URL: "",
 };

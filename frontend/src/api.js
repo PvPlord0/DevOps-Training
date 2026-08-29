@@ -1,7 +1,7 @@
 const BASE_URL =
   (typeof window !== 'undefined' && window.__ENV__ && window.__ENV__.API_BASE_URL) ||
   import.meta.env.VITE_API_BASE_URL ||
-  'http://api-gateway:8080';
+  '';
 
 let authToken = localStorage.getItem('authToken');
 
