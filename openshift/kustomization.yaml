@@ -1,0 +1,55 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: crt-20230367-dev
+
+resources:
+  # Secrets
+  - secrets/jwt-keys.yaml
+  - secrets/pg-credentials.yaml
+  - secrets/mysql-credentials.yaml
+  # ConfigMaps
+  - configmaps/frontend-config.yaml
+  - configmaps/mysql-seed.yaml
+  - configmaps/mongo-seed.yaml
+  # Databases
+  - deployments/postgres.yaml
+  - deployments/mysql.yaml
+  - deployments/mongodb.yaml
+  - deployments/rabbitmq.yaml
+  - deployments/redis.yaml
+  # Application services
+  - deployments/auth.yaml
+  - deployments/catalog.yaml
+  - deployments/booking.yaml
+  - deployments/insight.yaml
+  - deployments/analytics.yaml
+  - deployments/notification.yaml
+  - deployments/gateway.yaml
+  - deployments/frontend.yaml
+  # ImageStreams
+  - imagestreams/eh-auth.yaml
+  - imagestreams/eh-catalog.yaml
+  - imagestreams/eh-booking.yaml
+  - imagestreams/eh-insight.yaml
+  - imagestreams/eh-analytics.yaml
+  - imagestreams/eh-notification.yaml
+  - imagestreams/eh-gateway.yaml
+  - imagestreams/eh-frontend.yaml
+  - imagestreams/mongo.yaml
+  # BuildConfigs
+  - buildconfigs/eh-auth.yaml
+  - buildconfigs/eh-catalog.yaml
+  - buildconfigs/eh-booking.yaml
+  - buildconfigs/eh-insight.yaml
+  - buildconfigs/eh-analytics.yaml
+  - buildconfigs/eh-notification.yaml
+  - buildconfigs/eh-gateway.yaml
+  - buildconfigs/eh-frontend.yaml
+  # Routes
+  - routes/gateway.yaml
+  - routes/frontend.yaml
+  # Jobs
+  - jobs/analytics-seed.yaml
+  - jobs/mysql-seed.yaml
+  - jobs/mongo-seed.yaml

@@ -1,0 +1,9 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: eh-analytics
+  labels:
+    app: eh-analytics
+spec:
+  lookupPolicy:
+    local: false

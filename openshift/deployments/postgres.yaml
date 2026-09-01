@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pg-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eh-pg
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eh-pg
+  template:
+    metadata:
+      labels:
+        app: eh-pg
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17.10-alpine3.24
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: eventhub
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pg-credentials
+                  key: password
+            - name: POSTGRES_DB
+              value: eventhub_auth
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: pg-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "eventhub"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "eventhub"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: pg-data
+          persistentVolumeClaim:
+            claimName: pg-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eh-pg
+spec:
+  selector:
+    app: eh-pg
+  ports:
+    - port: 5432
+      targetPort: 5432
+  clusterIP: None

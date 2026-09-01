@@ -1,0 +1,9 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: eh-booking
+  labels:
+    app: eh-booking
+spec:
+  lookupPolicy:
+    local: false

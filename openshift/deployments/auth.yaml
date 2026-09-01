@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eh-auth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eh-auth
+  template:
+    metadata:
+      labels:
+        app: eh-auth
+    spec:
+      containers:
+        - name: auth
+          image: image-registry.openshift-image-registry.svc:5000/crt-20230367-dev/eh-auth:latest
+          ports:
+            - containerPort: 8082
+          env:
+            - name: PGHOST
+              value: eh-pg
+            - name: PGPORT
+              value: "5432"
+            - name: PGUSER
+              value: eventhub
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pg-credentials
+                  key: password
+            - name: PGDATABASE
+              value: eventhub_auth
+            - name: JWT_PRIVATE_KEY_PATH
+              value: /app/keys/private.pem
+          volumeMounts:
+            - name: jwt-keys
+              mountPath: /app/keys
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: jwt-keys
+          secret:
+            secretName: jwt-keys
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eh-auth
+spec:
+  selector:
+    app: eh-auth
+  ports:
+    - port: 8082
+      targetPort: 8082

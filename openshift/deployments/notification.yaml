@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eh-notification
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eh-notification
+  template:
+    metadata:
+      labels:
+        app: eh-notification
+    spec:
+      containers:
+        - name: notification
+          image: image-registry.openshift-image-registry.svc:5000/crt-20230367-dev/eh-notification:latest
+          env:
+            - name: RABBITMQ_URL
+              value: amqp://guest:guest@eh-rabbitmq:5672/
+            - name: RABBITMQ_QUEUE
+              value: bookings
+          livenessProbe:
+            exec:
+              command: ["pgrep", "-f", "notification-worker"]
+            initialDelaySeconds: 10
+            periodSeconds: 15

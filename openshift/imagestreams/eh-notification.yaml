@@ -1,0 +1,9 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: eh-notification
+  labels:
+    app: eh-notification
+spec:
+  lookupPolicy:
+    local: false

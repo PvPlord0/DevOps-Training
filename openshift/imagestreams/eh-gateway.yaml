@@ -1,0 +1,9 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: eh-gateway
+  labels:
+    app: eh-gateway
+spec:
+  lookupPolicy:
+    local: false

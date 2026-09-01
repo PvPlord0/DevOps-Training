@@ -6,6 +6,10 @@
 **/__pycache__/
 **/logs/
 **/.python-version
+frontend/dist/
 
 *.log
 *.pem
+
+# OpenShift
+openshift/secrets/jwt-keys.yaml

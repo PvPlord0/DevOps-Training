@@ -1,0 +1,9 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: eh-catalog
+  labels:
+    app: eh-catalog
+spec:
+  lookupPolicy:
+    local: false

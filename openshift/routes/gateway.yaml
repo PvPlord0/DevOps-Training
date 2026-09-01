@@ -1,0 +1,16 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: eh-gateway
+  labels:
+    app: eh-gateway
+spec:
+  to:
+    kind: Service
+    name: eh-gateway
+    weight: 100
+  port:
+    targetPort: 8080
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

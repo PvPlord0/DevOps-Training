@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eh-catalog
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eh-catalog
+  template:
+    metadata:
+      labels:
+        app: eh-catalog
+    spec:
+      containers:
+        - name: catalog
+          image: image-registry.openshift-image-registry.svc:5000/crt-20230367-dev/eh-catalog:latest
+          ports:
+            - containerPort: 8081
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:mysql://eh-mysql:3306/eventhub_catalog
+            - name: SPRING_DATASOURCE_USERNAME
+              value: root
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credentials
+                  key: root-password
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 20
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eh-catalog
+spec:
+  selector:
+    app: eh-catalog
+  ports:
+    - port: 8081
+      targetPort: 8081

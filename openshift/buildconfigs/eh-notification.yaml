@@ -1,0 +1,31 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: eh-notification
+  labels:
+    app: eh-notification
+spec:
+  nodeSelector: null
+  output:
+    to:
+      kind: ImageStreamTag
+      name: eh-notification:latest
+  postCommit: {}
+  resources: {}
+  runPolicy: Serial
+  source:
+    sourceSecret:
+      name: git-credentials
+    contextDir: services/notification-worker-go
+    git:
+      ref: Mahmoud
+      uri: https://github.com/PvPlord0/DevOps-Training.git
+    type: Git
+  strategy:
+    dockerStrategy:
+      dockerfilePath: Containerfile
+    type: Docker
+  triggers:
+    - type: ConfigChange
+    - imageChange: {}
+      type: ImageChange

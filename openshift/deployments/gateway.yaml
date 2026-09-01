@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eh-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eh-gateway
+  template:
+    metadata:
+      labels:
+        app: eh-gateway
+    spec:
+      containers:
+        - name: gateway
+          image: image-registry.openshift-image-registry.svc:5000/crt-20230367-dev/eh-gateway:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: FRONTEND_URL
+              value: "REPLACE_WITH_FRONTEND_ROUTE_URL"
+            - name: ROUTE__API_CATALOG
+              value: http://eh-catalog:8081
+            - name: ROUTE__API_AUTH
+              value: http://eh-auth:8082
+            - name: ROUTE__API_BOOKINGS
+              value: http://eh-booking:8083
+            - name: ROUTE__API_REVIEWS
+              value: http://eh-booking:8083
+            - name: ROUTE__API_ANALYZE
+              value: http://eh-insight:8084
+            - name: ROUTE__API_ANALYTICS
+              value: http://eh-analytics:8085
+            - name: JWT_PUBLIC_KEY_PATH
+              value: /app/keys/public.pem
+          volumeMounts:
+            - name: jwt-keys
+              mountPath: /app/keys
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: jwt-keys
+          secret:
+            secretName: jwt-keys
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eh-gateway
+spec:
+  selector:
+    app: eh-gateway
+  ports:
+    - port: 8080
+      targetPort: 8080

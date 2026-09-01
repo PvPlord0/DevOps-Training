@@ -1,0 +1,9 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: eh-auth
+  labels:
+    app: eh-auth
+spec:
+  lookupPolicy:
+    local: false

@@ -1,0 +1,25 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: eh-analytics-seed
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: eh-analytics-seed
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: analytics-seed
+          image: image-registry.openshift-image-registry.svc:5000/crt-20230367-dev/eh-analytics:latest
+          command: ["python", "job.py"]
+          env:
+            - name: REDIS_URL
+              value: redis://eh-redis:6379/0
+            - name: BOOKING_SERVICE_URL
+              value: http://eh-booking:8083
+            - name: CATALOG_SERVICE_URL
+              value: http://eh-catalog:8081
+            - name: SNAPSHOT_KEY
+              value: analytics:snapshot
