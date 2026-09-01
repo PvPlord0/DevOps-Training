@@ -1,0 +1,16 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  labels:
+    io.kompose.service: mongo-cont
+  name: mongo-cont
+spec:
+  lookupPolicy:
+    local: false
+  tags:
+    - from:
+        kind: DockerImage
+        name: docker.io/mongodb/mongodb-community-server:8.0-ubi8-slim
+      name: 8.0-ubi8-slim
+      referencePolicy:
+        type: ""

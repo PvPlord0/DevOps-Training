@@ -1,0 +1,37 @@
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  labels:
+    io.kompose.service: ai-cont
+  name: ai-cont
+spec:
+  replicas: 1
+  selector:
+    io.kompose.service: ai-cont
+  template:
+    metadata:
+      labels:
+        io.kompose.service: ai-cont
+    spec:
+      containers:
+        - env:
+            - name: OLLAMA_MODEL
+              value: qwen2.5-coder:1.5b
+            - name: OLLAMA_URL
+              value: http://localhost:11434
+            - name: PORT
+              value: "8084"
+          image: ' '
+          name: ai-cont
+      restartPolicy: Always
+  test: false
+  triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - ai-cont
+        from:
+          kind: ImageStreamTag
+          name: ai-cont:latest
+      type: ImageChange

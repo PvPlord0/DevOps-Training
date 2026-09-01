@@ -1,0 +1,16 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  labels:
+    io.kompose.service: auth-cont
+  name: auth-cont
+spec:
+  lookupPolicy:
+    local: false
+  tags:
+    - from:
+        kind: DockerImage
+        name: localhost/auth-image:latest
+      name: latest
+      referencePolicy:
+        type: ""

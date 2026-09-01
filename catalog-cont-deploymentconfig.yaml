@@ -1,0 +1,40 @@
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  labels:
+    io.kompose.service: catalog-cont
+  name: catalog-cont
+spec:
+  replicas: 1
+  selector:
+    io.kompose.service: catalog-cont
+  template:
+    metadata:
+      labels:
+        io.kompose.service: catalog-cont
+    spec:
+      containers:
+        - env:
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: rootpassword
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:mysql://mysql:3306/eventhub_catalog
+            - name: SPRING_DATASOURCE_USERNAME
+              value: root
+          image: ' '
+          name: catalog-cont
+          ports:
+            - containerPort: 8081
+              protocol: TCP
+      restartPolicy: Always
+  test: false
+  triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - catalog-cont
+        from:
+          kind: ImageStreamTag
+          name: catalog-cont:latest
+      type: ImageChange

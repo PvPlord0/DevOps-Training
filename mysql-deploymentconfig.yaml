@@ -1,0 +1,60 @@
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  labels:
+    io.kompose.service: mysql
+  name: mysql
+spec:
+  replicas: 1
+  selector:
+    io.kompose.service: mysql
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        io.kompose.service: mysql
+    spec:
+      containers:
+        - env:
+            - name: MYSQL_DATABASE
+              value: eventhub_catalog
+            - name: MYSQL_ROOT_PASSWORD
+              value: rootpassword
+          image: ' '
+          livenessProbe:
+            exec:
+              command:
+                - mysqladmin ping -h localhost -uroot -prootpassword
+            failureThreshold: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+          name: mysql
+          volumeMounts:
+            - mountPath: /var/lib/mysql
+              name: mysql-data
+            - mountPath: /docker-entrypoint-initdb.d/01-init.sql
+              name: mysql-cm1
+              subPath: 01-init.sql
+      restartPolicy: Always
+      volumes:
+        - name: mysql-data
+          persistentVolumeClaim:
+            claimName: mysql-data
+        - configMap:
+            items:
+              - key: mysql-seed.sql
+                path: 01-init.sql
+            name: mysql-cm1
+          name: mysql-cm1
+  test: false
+  triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - mysql
+        from:
+          kind: ImageStreamTag
+          name: mysql:8.0-oraclelinux8
+      type: ImageChange

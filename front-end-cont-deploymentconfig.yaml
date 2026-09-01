@@ -1,0 +1,36 @@
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  labels:
+    io.kompose.service: front-end-cont
+  name: front-end-cont
+spec:
+  replicas: 1
+  selector:
+    io.kompose.service: front-end-cont
+  template:
+    metadata:
+      labels:
+        io.kompose.service: front-end-cont
+    spec:
+      containers:
+        - env:
+            - name: VITE_API_BASE_URL
+              value: http://localhost:3000
+          image: ' '
+          name: front-end-cont
+          ports:
+            - containerPort: 80
+              protocol: TCP
+      restartPolicy: Always
+  test: false
+  triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - front-end-cont
+        from:
+          kind: ImageStreamTag
+          name: front-end-cont:latest
+      type: ImageChange

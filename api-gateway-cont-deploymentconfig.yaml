@@ -1,0 +1,36 @@
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  labels:
+    io.kompose.service: api-gateway-cont
+  name: api-gateway-cont
+spec:
+  replicas: 1
+  selector:
+    io.kompose.service: api-gateway-cont
+  template:
+    metadata:
+      labels:
+        io.kompose.service: api-gateway-cont
+    spec:
+      containers:
+        - env:
+            - name: PORT
+              value: "8080"
+          image: ' '
+          name: api-gateway-cont
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+      restartPolicy: Always
+  test: false
+  triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - api-gateway-cont
+        from:
+          kind: ImageStreamTag
+          name: api-gateway-cont:latest
+      type: ImageChange

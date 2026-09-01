@@ -1,0 +1,46 @@
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  labels:
+    io.kompose.service: booking-cont
+  name: booking-cont
+spec:
+  replicas: 1
+  selector:
+    io.kompose.service: booking-cont
+  template:
+    metadata:
+      labels:
+        io.kompose.service: booking-cont
+    spec:
+      containers:
+        - env:
+            - name: AI_INSIGHT_URL
+              value: http://ai-cont:8084
+            - name: MONGO_DB
+              value: eventhub_bookings
+            - name: MONGO_URI
+              value: mongodb://mongo-cont:27017
+            - name: PORT
+              value: "8083"
+            - name: RABBITMQ_QUEUE
+              value: bookings
+            - name: RABBITMQ_URL
+              value: amqp://eventhub:eventhub@rabbitmq:5672/
+          image: ' '
+          name: booking-cont
+          ports:
+            - containerPort: 8083
+              protocol: TCP
+      restartPolicy: Always
+  test: false
+  triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - booking-cont
+        from:
+          kind: ImageStreamTag
+          name: booking-cont:latest
+      type: ImageChange

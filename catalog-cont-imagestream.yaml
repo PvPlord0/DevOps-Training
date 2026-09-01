@@ -1,0 +1,16 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  labels:
+    io.kompose.service: catalog-cont
+  name: catalog-cont
+spec:
+  lookupPolicy:
+    local: false
+  tags:
+    - from:
+        kind: DockerImage
+        name: localhost/catalog:latest
+      name: latest
+      referencePolicy:
+        type: ""

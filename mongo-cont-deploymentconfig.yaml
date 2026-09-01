@@ -1,0 +1,39 @@
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  labels:
+    io.kompose.service: mongo-cont
+  name: mongo-cont
+spec:
+  replicas: 1
+  selector:
+    io.kompose.service: mongo-cont
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        io.kompose.service: mongo-cont
+    spec:
+      containers:
+        - image: ' '
+          name: mongo-cont
+          volumeMounts:
+            - mountPath: /data/db
+              name: mongo-data
+      restartPolicy: Always
+      volumes:
+        - name: mongo-data
+          persistentVolumeClaim:
+            claimName: mongo-data
+  test: false
+  triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - mongo-cont
+        from:
+          kind: ImageStreamTag
+          name: mongo-cont:8.0-ubi8-slim
+      type: ImageChange

@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    io.kompose.service: mongo-seed
+  name: mongo-seed
+spec:
+  containers:
+    - args:
+        - bash
+        - -c
+        - |-
+          sleep 5 &&
+                  mongosh --host mongo-cont --eval 'db.getSiblingDB("eventhub_bookings")' < /seed.js
+      image: docker.io/mongodb/mongodb-community-server:8.0-ubi8-slim
+      name: mongo-seed
+      volumeMounts:
+        - mountPath: /seed.js
+          name: mongo-seed-cm0
+          subPath: seed.js
+  restartPolicy: Never
+  volumes:
+    - configMap:
+        items:
+          - key: mongo-seed.js
+            path: seed.js
+        name: mongo-seed-cm0
+      name: mongo-seed-cm0

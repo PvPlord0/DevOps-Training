@@ -1,0 +1,48 @@
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  labels:
+    io.kompose.service: auth-cont
+  name: auth-cont
+spec:
+  replicas: 1
+  selector:
+    io.kompose.service: auth-cont
+  template:
+    metadata:
+      labels:
+        io.kompose.service: auth-cont
+    spec:
+      containers:
+        - env:
+            - name: JWT_SECRET
+              value: my-super-secret
+            - name: PGDATABASE
+              value: eventhub_auth
+            - name: PGHOST
+              value: postgres
+            - name: PGPASSWORD
+              value: eventhub
+            - name: PGPORT
+              value: "5432"
+            - name: PGUSER
+              value: eventhub
+            - name: PORT
+              value: "8082"
+          image: ' '
+          name: auth-cont
+          ports:
+            - containerPort: 8082
+              protocol: TCP
+      restartPolicy: Always
+  test: false
+  triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - auth-cont
+        from:
+          kind: ImageStreamTag
+          name: auth-cont:latest
+      type: ImageChange

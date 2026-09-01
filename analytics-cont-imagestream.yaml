@@ -1,0 +1,16 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  labels:
+    io.kompose.service: analytics-cont
+  name: analytics-cont
+spec:
+  lookupPolicy:
+    local: false
+  tags:
+    - from:
+        kind: DockerImage
+        name: localhost/analytics-image:latest
+      name: latest
+      referencePolicy:
+        type: ""

@@ -1,0 +1,44 @@
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  labels:
+    io.kompose.service: analytics-cont
+  name: analytics-cont
+spec:
+  replicas: 1
+  selector:
+    io.kompose.service: analytics-cont
+  template:
+    metadata:
+      labels:
+        io.kompose.service: analytics-cont
+    spec:
+      containers:
+        - env:
+            - name: BOOKING_SERVICE_URL
+              value: http://booking-cont:8083
+            - name: CATALOG_SERVICE_URL
+              value: http://catalog-cont:8081
+            - name: PORT
+              value: "8085"
+            - name: REDIS_URL
+              value: redis://redis-cont:6379/0
+            - name: SNAPSHOT_KEY
+              value: analytics:snapshot
+          image: ' '
+          name: analytics-cont
+          ports:
+            - containerPort: 8085
+              protocol: TCP
+      restartPolicy: Always
+  test: false
+  triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - analytics-cont
+        from:
+          kind: ImageStreamTag
+          name: analytics-cont:latest
+      type: ImageChange

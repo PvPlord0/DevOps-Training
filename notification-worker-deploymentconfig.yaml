@@ -1,0 +1,35 @@
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  labels:
+    io.kompose.service: notification-worker
+  name: notification-worker
+spec:
+  replicas: 1
+  selector:
+    io.kompose.service: notification-worker
+  template:
+    metadata:
+      labels:
+        io.kompose.service: notification-worker
+    spec:
+      containers:
+        - env:
+            - name: RABBITMQ_QUEUE
+              value: bookings
+            - name: RABBITMQ_URL
+              value: amqp://eventhub:eventhub@rabbitmq:5672/
+          image: ' '
+          name: notification-worker
+      restartPolicy: Always
+  test: false
+  triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - notification-worker
+        from:
+          kind: ImageStreamTag
+          name: notification-worker:latest
+      type: ImageChange

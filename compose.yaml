@@ -1,0 +1,204 @@
+name: eventhub
+
+services:
+  # ============================================
+  # Databases
+  # ============================================
+  postgres:
+    image: docker.io/library/postgres:15
+    container_name: postgres
+    environment:
+      POSTGRES_USER: eventhub
+      POSTGRES_PASSWORD: eventhub
+      POSTGRES_DB: eventhub_auth
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  mysql:
+    image: docker.io/library/mysql:8.0-oraclelinux8
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: eventhub_catalog
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db-seed/mysql/mysql-seed.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -prootpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+
+  mongo-cont:
+    image: docker.io/mongodb/mongodb-community-server:8.0-ubi8-slim
+    container_name: mongo-cont
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+
+  mongo-seed:
+    image: docker.io/mongodb/mongodb-community-server:8.0-ubi8-slim
+    container_name: mongo-seed
+    depends_on:
+      mongo-cont:
+        condition: service_started
+    volumes:
+      - ./db-seed/mongo/mongo-seed.js:/seed.js
+    command: >
+      bash -c "sleep 5 &&
+              mongosh --host mongo-cont --eval 'db.getSiblingDB(\"eventhub_bookings\")' < /seed.js"
+    restart: "no"
+  redis-cont:
+    image: docker.io/library/redis:7-alpine
+    container_name: redis-cont
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  rabbitmq:
+    image: docker.io/library/rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: eventhub
+      RABBITMQ_DEFAULT_PASS: eventhub
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+
+  # ============================================
+  # Backend Services
+  # ============================================
+  auth-cont:
+    image: localhost/auth-image:latest
+    container_name: auth-cont
+    ports:
+      - "8082:8082"
+    environment:
+      PORT: 8082
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: eventhub
+      PGPASSWORD: eventhub
+      PGDATABASE: eventhub_auth
+      JWT_SECRET: my-super-secret
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  catalog-cont:
+    image: localhost/catalog:latest
+    container_name: catalog-cont
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/eventhub_catalog
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: rootpassword
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  booking-cont:
+    image: localhost/booking-image:latest
+    container_name: booking-cont
+    ports:
+      - "8083:8083"
+    environment:
+      PORT: 8083
+      MONGO_URI: mongodb://mongo-cont:27017
+      MONGO_DB: eventhub_bookings
+      RABBITMQ_URL: amqp://eventhub:eventhub@rabbitmq:5672/
+      RABBITMQ_QUEUE: bookings
+      AI_INSIGHT_URL: http://ai-cont:8084
+    depends_on:
+      - mongo-cont
+      - rabbitmq
+    restart: unless-stopped
+
+  ai-cont:
+    image: localhost/ai-cont:latest
+    container_name: ai-cont
+    # Connects to host network to talk to your local Ollama instance (matching script behavior)
+    network_mode: host
+    environment:
+      PORT: 8084
+      OLLAMA_URL: http://localhost:11434
+      OLLAMA_MODEL: qwen2.5-coder:1.5b
+    restart: unless-stopped
+
+  analytics-cont:
+    image: localhost/analytics-image:latest
+    container_name: analytics-cont
+    ports:
+      - "8085:8085"
+    environment:
+      PORT: 8085
+      REDIS_URL: redis://redis-cont:6379/0
+      BOOKING_SERVICE_URL: http://booking-cont:8083
+      CATALOG_SERVICE_URL: http://catalog-cont:8081
+      SNAPSHOT_KEY: analytics:snapshot
+    depends_on:
+      - redis-cont
+      - booking-cont
+      - catalog-cont
+    restart: unless-stopped
+  analytics-job:
+    image: localhost/analytics-image:latest
+    container_name: analytics-job
+    depends_on:
+      analytics-cont:
+        condition: service_started
+    environment:
+      REDIS_URL: redis://redis-cont:6379/0
+      BOOKING_SERVICE_URL: http://booking-cont:8083
+      CATALOG_SERVICE_URL: http://catalog-cont:8081
+      SNAPSHOT_KEY: analytics:snapshot
+    command: python job.py
+    restart: "no"
+  notification-worker:
+    image: localhost/notification-worker-image:latest
+    container_name: notification-worker
+    environment:
+      RABBITMQ_URL: amqp://eventhub:eventhub@rabbitmq:5672/
+      RABBITMQ_QUEUE: bookings
+    depends_on:
+      - rabbitmq
+    restart: unless-stopped
+
+  api-gateway-cont:
+    image: localhost/api-gateway-image:latest
+    container_name: api-gateway-cont
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: 8080
+    restart: unless-stopped
+
+  # ============================================
+  # Frontend
+  # ============================================
+  front-end-cont:
+    image: localhost/front_end:latest
+    container_name: front-end-cont
+    ports:
+      - "3000:80"
+    environment:
+      VITE_API_BASE_URL: http://localhost:3000
+    restart: unless-stopped
+ 
+# ============================================
+# Persistent Volumes
+# ============================================
+volumes:
+  postgres_data:
+  mysql_data:
+  mongo_data:
+  redis_data:
+  rabbitmq_data:
