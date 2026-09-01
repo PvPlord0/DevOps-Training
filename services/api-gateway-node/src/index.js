@@ -26,12 +26,12 @@ app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:3000' }));
 const publicKey = loadKeyFromFile(process.env.JWT_PUBLIC_KEY_PATH);
 
 const routes = {
-  '/api/catalog': 'http://localhost:8081',
-  '/api/auth': 'http://localhost:8082',
-  '/api/bookings': 'http://localhost:8083',
-  '/api/reviews': 'http://localhost:8083',
-  '/api/analyze': 'http://localhost:8084',
-  '/api/analytics': 'http://localhost:8085',
+  '/api/auth': 'http://auth-cont:8082',
+  '/api/catalog': 'http://catalog-cont:8081',
+  '/api/bookings': 'http://booking-cont:8083',
+  '/api/reviews': 'http://booking-cont:8083',
+  '/api/analyze': 'http://host.containers.internal:8084',
+  '/api/analytics': 'http://analytics-cont:8085',
 };
 
 function skipAuth(req) {
@@ -63,7 +63,16 @@ function forwardUserHeaders(req) {
 
 function setupRoutes(app) {
   Object.entries(routes).forEach(([path, target]) => {
-    app.use(path, createProxyMiddleware({ target, changeOrigin: true }));
+    app.use(path, createProxyMiddleware({
+      target,
+      changeOrigin: true,
+      proxyTimeout: 60000,   
+      timeout: 60000,
+      onError: (err, req, res) => {
+        console.error('Proxy error:', err.message);
+        res.status(504).json({ error: 'gateway timeout' });
+      }
+    }));
   });
 }
 

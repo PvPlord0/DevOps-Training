@@ -3,14 +3,14 @@ Redis. Run this manually or on a repeating schedule -- how you schedule it
 changes across the project's phases, but this script itself does not."""
 
 import logging
-
+import sys
+sys.path.insert(0, '/app/src')
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from app.redis_client import write_snapshot
-from app.snapshot import compute_snapshot
-
+from redis_client import write_snapshot
+from snapshot import compute_snapshot
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("analytics-job")
 

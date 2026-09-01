@@ -24,16 +24,31 @@ async function request(path, options = {}) {
   if (authToken) {
     headers['Authorization'] = `Bearer ${authToken}`;
   }
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers,
-    ...options,
-  });
-  if (!res.ok) {
-    throw new Error(`${options.method || 'GET'} ${path} failed: ${res.status}`);
-  }
-  return res.json();
-}
 
+  // AbortController for timeout
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000); // 30 seconds
+  const signal = controller.signal;
+
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      headers,
+      signal,
+      ...options,
+    });
+    clearTimeout(timeout);
+    if (!res.ok) {
+      throw new Error(`${options.method || 'GET'} ${path} failed: ${res.status}`);
+    }
+    return res.json();
+  } catch (err) {
+    clearTimeout(timeout);
+    if (err.name === 'AbortError') {
+      throw new Error(`${options.method || 'GET'} ${path} timed out`);
+    }
+    throw err;
+  }
+}
 export const api = {
   login: (email, password) =>
     request('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
