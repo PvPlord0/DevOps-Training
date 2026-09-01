@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-seed
+data:
+  mysql-seed.sql: |
+    CREATE DATABASE IF NOT EXISTS eventhub_catalog;
+    USE eventhub_catalog;
+
+    CREATE TABLE IF NOT EXISTS catalog_event (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      price DECIMAL(10, 2) NOT NULL
+    );
+
+    INSERT INTO catalog_event (title, price) VALUES
+      ('Campus Tech Meetup', 0.00),
+      ('Intro to Distributed Systems', 15.00),
+      ('Career Fair: Software Engineering', 25.00),
+      ('End of Semester Concert', 10.00);
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eventhub-mysql
+  labels:
+    app: eventhub-mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eventhub-mysql
+  template:
+    metadata:
+      labels:
+        app: eventhub-mysql
+    spec:
+      containers:
+        - name: mysql
+          image: docker.io/library/mysql:8.4.11
+          args:
+            - "--innodb-flush-log-at-trx-commit=2"
+            - "--innodb-doublewrite=0"
+            - "--sync-binlog=0"
+          ports:
+            - containerPort: 3306
+              name: mysql
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: "root_secure_pass"
+            - name: MYSQL_DATABASE
+              value: "eventhub_catalog"
+            - name: MYSQL_USER
+              value: "catalog_user"
+            - name: MYSQL_PASSWORD
+              value: "catalog_pass"
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+            - name: mysql-seed-volume
+              mountPath: /docker-entrypoint-initdb.d/mysql-seed.sql
+              subPath: mysql-seed.sql
+          readinessProbe:
+            exec:
+              command:
+                - mysqladmin
+                - ping
+                - "-h"
+                - "127.0.0.1"
+                - "-u"
+                - "catalog_user"
+                - "-pcatalog_pass"
+            initialDelaySeconds: 300
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 10
+      volumes:
+        - name: mysql-data
+          persistentVolumeClaim:
+            claimName: mysql
+        - name: mysql-seed-volume
+          configMap:
+            name: mysql-seed
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eventhub-mysql
+spec:
+  ports:
+    - port: 3306
+      targetPort: 3306
+      name: mysql
+  selector:
+    app: eventhub-mysql

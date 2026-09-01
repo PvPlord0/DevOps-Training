@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: eventhub-analytic-job
+  labels:
+    app: eventhub-analytic-job
+spec:
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        app: eventhub-analytic-job
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: analytic-job
+          image: docker.io/20230387/analytics-service-python:1.0.0
+          command:
+            - python
+            - job.py
+          env:
+            # Redis Configuration
+            - name: REDIS_HOST
+              value: "eventhub-redis"
+            - name: REDIS_HOSTNAME
+              value: "eventhub-redis"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_URL
+              value: "redis://eventhub-redis:6379"
+            - name: REDIS_URI
+              value: "redis://eventhub-redis:6379"
+            # Inter-service Communication
+            - name: CATALOG_SERVICE_URL
+              value: "http://eventhub-catalog:8081"
+            - name: BOOKING_SERVICE_URL
+              value: "http://eventhub-booking:8083"

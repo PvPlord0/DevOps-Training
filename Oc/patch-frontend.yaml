@@ -1,0 +1,23 @@
+spec:
+  template:
+    spec:
+      initContainers:
+      - name: patch-frontend-url
+        image: docker.io/20230387/frontend-react:1.0.0
+        command:
+        - sh
+        - -c
+        - |
+          cp -r /usr/share/nginx/html/* /target/
+          find /target -name '*.js' -exec sed -i 's|http://localhost:8080|http://eventhub-api-gateway-crt-20230387-dev.apps.rm1.0a51.p1.openshiftapps.com|g' {} +
+        volumeMounts:
+        - name: web-storage
+          mountPath: /target
+      containers:
+      - name: frontend
+        volumeMounts:
+        - name: web-storage
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: web-storage
+        emptyDir: {}

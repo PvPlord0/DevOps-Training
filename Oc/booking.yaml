@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eventhub-booking
+  labels:
+    app: eventhub-booking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eventhub-booking
+  template:
+    metadata:
+      labels:
+        app: eventhub-booking
+    spec:
+      containers:
+        - name: booking-service
+          image: docker.io/20230387/booking-service:1.0.0
+          ports:
+            - containerPort: 8083
+              name: http
+          env:
+            - name: PORT
+              value: "8083"
+            - name: MONGO_HOST
+              value: "eventhub-mongodb"
+            - name: MONGODB_HOST
+              value: "eventhub-mongodb"
+            - name: MONGO_PORT
+              value: "27017"
+            - name: MONGODB_PORT
+              value: "27017"
+            - name: MONGO_USER
+              value: "booking_user"
+            - name: MONGO_PASS
+              value: "booking_pass"
+            - name: MONGO_DB
+              value: "eventhub_bookings"
+            - name: MONGODB_DB
+              value: "eventhub_bookings"
+            - name: MONGO_URI
+              value: "mongodb://booking_user:booking_pass@eventhub-mongodb:27017/eventhub_bookings?authSource=admin"
+            - name: MONGODB_URI
+              value: "mongodb://booking_user:booking_pass@eventhub-mongodb:27017/eventhub_bookings?authSource=admin"
+            - name: MONGO_URL
+              value: "mongodb://booking_user:booking_pass@eventhub-mongodb:27017/eventhub_bookings?authSource=admin"
+            - name: MONGODB_URL
+              value: "mongodb://booking_user:booking_pass@eventhub-mongodb:27017/eventhub_bookings?authSource=admin"
+            - name: AI_INSIGHT_URL
+              value: "http://eventhub-ai-insights:8084"
+          readinessProbe:
+            tcpSocket:
+              port: 8083
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eventhub-booking
+spec:
+  ports:
+    - port: 8083
+      targetPort: 8083
+      name: http
+  selector:
+    app: eventhub-booking

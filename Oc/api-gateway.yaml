@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eventhub-api-gateway
+  labels:
+    app: eventhub-api-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eventhub-api-gateway
+  template:
+    metadata:
+      labels:
+        app: eventhub-api-gateway
+    spec:
+      containers:
+        - name: api-gateway
+          image: docker.io/20230387/api-gateway-node:1.0.0
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: PORT
+              value: "8080"
+            # RSA Key Paths
+            - name: KEYS_DIR
+              value: "/app/keys"
+            - name: JWT_PUBLIC_KEY_PATH
+              value: "/app/keys/public.pem"
+            - name: PUBLIC_KEY_PATH
+              value: "/app/keys/public.pem"
+            - name: JWT_PRIVATE_KEY_PATH
+              value: "/app/keys/private.pem"
+            - name: PRIVATE_KEY_PATH
+              value: "/app/keys/private.pem"
+            - name: KEY_PATH
+              value: "/app/keys/public.pem"
+            # Microservice Route Endpoints
+            - name: CATALOG_SERVICE_URL
+              value: "http://eventhub-catalog:8081"
+            - name: AUTH_SERVICE_URL
+              value: "http://eventhub-auth:8082"
+            - name: BOOKING_SERVICE_URL
+              value: "http://eventhub-booking:8083"
+            - name: AI_SERVICE_URL
+              value: "http://eventhub-ai-insights:8084"
+            - name: ANALYTICS_SERVICE_URL
+              value: "http://eventhub-analytics:8085"
+          volumeMounts:
+            - name: jwt-keys-volume
+              mountPath: /app/keys
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 15
+      volumes:
+        - name: jwt-keys-volume
+          secret:
+            secretName: jwt-keys
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eventhub-api-gateway
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+  selector:
+    app: eventhub-api-gateway

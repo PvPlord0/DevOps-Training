@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongo-seed
+data:
+  mongo-seed.js: |
+    db = db.getSiblingDB('eventhub_bookings');
+    db.bookings.insertMany([
+      { id: "seed-1", userId: "demo-user", eventId: 1, status: "confirmed" },
+      { id: "seed-2", userId: "demo-user", eventId: 3, status: "confirmed" },
+    ]);
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongo
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eventhub-mongodb
+  labels:
+    app: eventhub-mongodb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eventhub-mongodb
+  template:
+    metadata:
+      labels:
+        app: eventhub-mongodb
+    spec:
+      containers:
+        - name: mongo
+          image: docker.io/library/mongo:8.0.28
+          ports:
+            - containerPort: 27017
+              name: mongodb
+          env:
+            - name: GLIBC_TUNABLES
+              value: "glibc.pthread.rseq=1"
+            - name: MONGO_INITDB_ROOT_USERNAME
+              value: "booking_user"
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              value: "booking_pass"
+            - name: MONGO_INITDB_DATABASE
+              value: "eventhub_bookings"
+          volumeMounts:
+            - name: mongo-data
+              mountPath: /data/db
+            - name: mongo-seed-volume
+              mountPath: /docker-entrypoint-initdb.d/mongo-seed.js
+              subPath: mongo-seed.js
+          readinessProbe:
+            exec:
+              command:
+                - mongosh
+                - --eval
+                - "db.runCommand('ping').ok"
+                - --quiet
+            initialDelaySeconds: 40
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 10
+      volumes:
+        - name: mongo-data
+          persistentVolumeClaim:
+            claimName: mongo
+        - name: mongo-seed-volume
+          configMap:
+            name: mongo-seed
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eventhub-mongodb
+spec:
+  ports:
+    - port: 27017
+      targetPort: 27017
+      name: mongodb
+  selector:
+    app: eventhub-mongodb

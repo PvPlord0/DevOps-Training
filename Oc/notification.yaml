@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eventhub-notification
+  labels:
+    app: eventhub-notification
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eventhub-notification
+  template:
+    metadata:
+      labels:
+        app: eventhub-notification
+    spec:
+      containers:
+        - name: notification-worker
+          image: docker.io/20230387/notification-worker:1.0.0
+          env:
+            # RabbitMQ Connection Configuration
+            - name: RABBITMQ_HOST
+              value: "eventhub-rabbitmq"
+            - name: RABBIT_HOST
+              value: "eventhub-rabbitmq"
+            - name: AMQP_HOST
+              value: "eventhub-rabbitmq"
+            - name: RABBITMQ_PORT
+              value: "5672"
+            - name: RABBITMQ_USER
+              value: "eventhub_mq"
+            - name: RABBITMQ_PASS
+              value: "mq_secure_pass"
+            - name: RABBITMQ_URL
+              value: "amqp://eventhub_mq:mq_secure_pass@eventhub-rabbitmq:5672/"
+            - name: AMQP_URL
+              value: "amqp://eventhub_mq:mq_secure_pass@eventhub-rabbitmq:5672/"
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - "pgrep -f notification"
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 10

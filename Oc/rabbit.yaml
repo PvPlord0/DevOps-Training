@@ -1,0 +1,64 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rabbitmq
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eventhub-rabbitmq
+  labels:
+    app: eventhub-rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eventhub-rabbitmq
+  template:
+    metadata:
+      labels:
+        app: eventhub-rabbitmq
+    spec:
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:3-management
+          ports:
+            - containerPort: 5672
+              name: amqp
+            - containerPort: 15672
+              name: management
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              value: "eventhub_mq"
+            - name: RABBITMQ_DEFAULT_PASS
+              value: "mq_secure_pass"
+            - name: RABBITMQ_ERLANG_COOKIE
+              value: "EVENTHUB_SECRET_COOKIE_123"
+          volumeMounts:
+            - name: rabbitmq-data
+              mountPath: /var/lib/rabbitmq
+      volumes:
+        - name: rabbitmq-data
+          persistentVolumeClaim:
+            claimName: rabbitmq
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eventhub-rabbitmq
+spec:
+  ports:
+    - port: 5672
+      targetPort: 5672
+      name: amqp
+    - port: 15672
+      targetPort: 15672
+      name: management
+  selector:
+    app: eventhub-rabbitmq

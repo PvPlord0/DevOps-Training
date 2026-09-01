@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eventhub-auth
+  labels:
+    app: eventhub-auth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eventhub-auth
+  template:
+    metadata:
+      labels:
+        app: eventhub-auth
+    spec:
+      containers:
+        - name: auth-service
+          image: docker.io/20230387/auth-service:1.0.0
+          ports:
+            - containerPort: 8082
+              name: http
+          env:
+            - name: PORT
+              value: "8082"
+            - name: NODE_ENV
+              value: "production"
+            # Database Configuration
+            - name: PGHOST
+              value: "eventhub-postgres"
+            - name: PGUSER
+              value: "auth_user"
+            - name: PGPASSWORD
+              value: "auth_secure_pass"
+            - name: PGDATABASE
+              value: "auth_db"
+            # RSA Key Paths
+            - name: KEYS_DIR
+              value: "/app/keys"
+            - name: JWT_PRIVATE_KEY_PATH
+              value: "/app/keys/private.pem"
+            - name: JWT_PUBLIC_KEY_PATH
+              value: "/app/keys/public.pem"
+            - name: PRIVATE_KEY_PATH
+              value: "/app/keys/private.pem"
+            - name: PUBLIC_KEY_PATH
+              value: "/app/keys/public.pem"
+            - name: KEY_PATH
+              value: "/app/keys/private.pem"
+          volumeMounts:
+            - name: jwt-keys-volume
+              mountPath: /app/keys
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 15
+      volumes:
+        - name: jwt-keys-volume
+          secret:
+            secretName: jwt-keys
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eventhub-auth
+spec:
+  ports:
+    - port: 8082
+      targetPort: 8082
+      name: http
+  selector:
+    app: eventhub-auth

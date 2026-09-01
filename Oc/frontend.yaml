@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eventhub-frontend
+  labels:
+    app: eventhub-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eventhub-frontend
+  template:
+    metadata:
+      labels:
+        app: eventhub-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: docker.io/20230387/frontend-react:1.0.0
+          ports:
+            - containerPort: 3000
+              name: http
+          volumeMounts:
+            - name: cache-volume
+              mountPath: /var/cache/nginx
+            - name: run-volume
+              mountPath: /var/run
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 15
+      volumes:
+        - name: cache-volume
+          emptyDir: {}
+        - name: run-volume
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eventhub-frontend
+spec:
+  ports:
+    - port: 3000
+      targetPort: 3000
+      name: http
+  selector:
+    app: eventhub-frontend

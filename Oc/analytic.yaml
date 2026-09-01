@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eventhub-analytics
+  labels:
+    app: eventhub-analytics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eventhub-analytics
+  template:
+    metadata:
+      labels:
+        app: eventhub-analytics
+    spec:
+      containers:
+        - name: analytics-service
+          image: docker.io/20230387/analytics-service-python:1.0.0
+          ports:
+            - containerPort: 8085
+              name: http
+          env:
+            - name: PORT
+              value: "8085"
+            # Redis Configuration
+            - name: REDIS_HOST
+              value: "eventhub-redis"
+            - name: REDIS_HOSTNAME
+              value: "eventhub-redis"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_URL
+              value: "redis://eventhub-redis:6379"
+            - name: REDIS_URI
+              value: "redis://eventhub-redis:6379"
+            # Inter-service Communication
+            - name: CATALOG_SERVICE_URL
+              value: "http://eventhub-catalog:8081"
+            - name: BOOKING_SERVICE_URL
+              value: "http://eventhub-booking:8083"
+          readinessProbe:
+            tcpSocket:
+              port: 8085
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eventhub-analytics
+spec:
+  ports:
+    - port: 8085
+      targetPort: 8085
+      name: http
+  selector:
+    app: eventhub-analytics
